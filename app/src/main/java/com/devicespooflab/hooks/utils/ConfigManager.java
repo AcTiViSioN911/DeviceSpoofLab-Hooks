@@ -5,27 +5,16 @@ import java.io.File;
 import java.io.FileReader;
 import java.util.HashMap;
 import java.util.Map;
-import android.util.Log;
 
-/**
- * Manages configuration for spoofed values.
- * Cleaned from hardcoded Pixel 7 Pro defaults.
- * No Magisk dependency - works as standalone LSPosed module.
- */
 public class ConfigManager {
 
-    private static final String TAG = "DeviceSpoofLab-Hooks";
-
-    // Config file paths (tried in order)
     private static final String[] CONFIG_PATHS = {
         "/data/data/com.devicespooflab.hooks/files/device_profile.conf",
         "/sdcard/DeviceSpoofLab-Hooks/device_profile.conf"
     };
 
-    // Cached configuration
     private static Map<String, String> allProperties = null;
 
-    // Legacy cached identifiers
     private static String cachedIMEI = null;
     private static String cachedMEID = null;
     private static String cachedIMSI = null;
@@ -52,41 +41,28 @@ public class ConfigManager {
                     String line;
                     while ((line = reader.readLine()) != null) {
                         line = line.trim();
-
-                        if (line.isEmpty() || line.startsWith("#")) {
-                            continue;
-                        }
+                        if (line.isEmpty() || line.startsWith("#")) continue;
 
                         int equalIndex = line.indexOf('=');
                         if (equalIndex > 0) {
                             String key = line.substring(0, equalIndex).trim();
                             String value = line.substring(equalIndex + 1).trim();
-
                             if (value.startsWith("\"") && value.endsWith("\"")) {
                                 value = value.substring(1, value.length() - 1);
                             }
-
                             config.put(key, value);
                         }
                     }
                     return config;
-                } catch (Exception e) {
-                    Log.e(TAG, "Failed to read config: " + e.getMessage());
-                }
+                } catch (Exception e) {}
             }
         }
-
         return getEmbeddedDefaults();
     }
 
-    /**
-     * CLEANED DEFAULTS: Removed all hardcoded Cheetah/Pixel 7 Pro properties.
-     * Only essential security and Kazakhstan persona flags remain.
-     */
     private static Map<String, String> getEmbeddedDefaults() {
         Map<String, String> defaults = new HashMap<>();
 
-        // Masking root/unlock (Necessary for functionality on rooted devices)
         defaults.put("ro.boot.verifiedbootstate", "green");
         defaults.put("ro.boot.flash.locked", "1");
         defaults.put("ro.boot.vbmeta.device_state", "locked");
@@ -98,7 +74,6 @@ public class ConfigManager {
         defaults.put("ro.kernel.qemu", "0");
         defaults.put("ro.boot.qemu", "0");
 
-        // Essential Persona (Kazakhstan Kcell)
         defaults.put("gsm.operator.alpha", "Kcell");
         defaults.put("gsm.operator.numeric", "40102");
         defaults.put("gsm.sim.operator.alpha", "Kcell");
@@ -111,9 +86,7 @@ public class ConfigManager {
     }
 
     private static String getConfigValue(String key) {
-        if (allProperties == null) {
-            init();
-        }
+        if (allProperties == null) init();
         return allProperties.get(key);
     }
 
@@ -127,40 +100,28 @@ public class ConfigManager {
         return (value != null) ? value : defaultValue;
     }
 
-    // ==================== Identifiers ====================
-
     public static String getIMEI() {
-        if (cachedIMEI == null) {
-            cachedIMEI = RandomGenerator.generateIMEI();
-        }
+        if (cachedIMEI == null) cachedIMEI = RandomGenerator.generateIMEI();
         return cachedIMEI;
     }
 
     public static String getMEID() {
-        if (cachedMEID == null) {
-            cachedMEID = RandomGenerator.generateMEID();
-        }
+        if (cachedMEID == null) cachedMEID = RandomGenerator.generateMEID();
         return cachedMEID;
     }
 
     public static String getIMSI() {
-        if (cachedIMSI == null) {
-            cachedIMSI = RandomGenerator.generateIMSI();
-        }
+        if (cachedIMSI == null) cachedIMSI = RandomGenerator.generateIMSI();
         return cachedIMSI;
     }
 
     public static String getICCID() {
-        if (cachedICCID == null) {
-            cachedICCID = RandomGenerator.generateICCID();
-        }
+        if (cachedICCID == null) cachedICCID = RandomGenerator.generateICCID();
         return cachedICCID;
     }
 
     public static String getPhoneNumber() {
-        if (cachedPhoneNumber == null) {
-            cachedPhoneNumber = RandomGenerator.generatePhoneNumber();
-        }
+        if (cachedPhoneNumber == null) cachedPhoneNumber = RandomGenerator.generatePhoneNumber();
         return cachedPhoneNumber;
     }
 
@@ -178,16 +139,12 @@ public class ConfigManager {
     }
 
     public static String getGAID() {
-        if (cachedGAID == null) {
-            cachedGAID = RandomGenerator.generateGAID();
-        }
+        if (cachedGAID == null) cachedGAID = RandomGenerator.generateGAID();
         return cachedGAID;
     }
 
     public static String getGSFId() {
-        if (cachedGSFId == null) {
-            cachedGSFId = RandomGenerator.generateGSFId();
-        }
+        if (cachedGSFId == null) cachedGSFId = RandomGenerator.generateGSFId();
         return cachedGSFId;
     }
 
@@ -203,27 +160,19 @@ public class ConfigManager {
     }
 
     public static byte[] getMediaDrmId() {
-        if (cachedMediaDrmId == null) {
-            cachedMediaDrmId = RandomGenerator.generateMediaDrmId();
-        }
+        if (cachedMediaDrmId == null) cachedMediaDrmId = RandomGenerator.generateMediaDrmId();
         return cachedMediaDrmId;
     }
 
     public static String getAppSetId() {
-        if (cachedAppSetId == null) {
-            cachedAppSetId = RandomGenerator.generateGAID();
-        }
+        if (cachedAppSetId == null) cachedAppSetId = RandomGenerator.generateGAID();
         return cachedAppSetId;
     }
 
     public static boolean isConfigAvailable() {
-        if (allProperties == null) {
-            init();
-        }
+        if (allProperties == null) init();
         return !allProperties.isEmpty();
     }
-
-    // ==================== Build Field Accessors ====================
 
     public static String getBuildFingerprint() { return getConfigValue("ro.build.fingerprint"); }
     public static String getBuildModel() { return getConfigValue("ro.product.model"); }
@@ -236,10 +185,7 @@ public class ConfigManager {
 
     public static String getBuildBootloader() {
         String bootloader = getConfigValue("ro.bootloader");
-        if (bootloader == null || bootloader.isEmpty()) {
-            return null; // Let the system use native bootloader if not specified
-        }
-        return bootloader;
+        return (bootloader == null || bootloader.isEmpty()) ? null : bootloader;
     }
 
     public static String getBuildId() { return getConfigValue("ro.build.id"); }
@@ -250,11 +196,7 @@ public class ConfigManager {
 
     public static int getBuildVersionSdk() {
         String sdk = getConfigValue("ro.build.version.sdk");
-        try {
-            return Integer.parseInt(sdk);
-        } catch (Exception e) {
-            return 36; // Default to Android 16 (SDK 36) for Lynx
-        }
+        try { return Integer.parseInt(sdk); } catch (Exception e) { return 36; }
     }
 
     public static String getBuildVersionSecurityPatch() { return getConfigValue("ro.build.version.security_patch"); }
