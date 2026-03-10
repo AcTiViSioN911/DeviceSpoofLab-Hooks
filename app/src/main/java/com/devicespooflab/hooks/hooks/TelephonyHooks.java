@@ -1,242 +1,49 @@
 package com.devicespooflab.hooks.hooks;
 
 import com.devicespooflab.hooks.utils.ConfigManager;
-
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
-/**
- * Hooks TelephonyManager methods to spoof device identifiers.
- * Spoofs: IMEI, MEID, IMSI, ICCID, phone number
- */
 public class TelephonyHooks {
 
     public static void hook(XC_LoadPackage.LoadPackageParam lpparam) {
-        Class<?> telephonyManager = XposedHelpers.findClassIfExists(
-                "android.telephony.TelephonyManager",
-                lpparam.classLoader
-        );
+        Class<?> tm = XposedHelpers.findClassIfExists("android.telephony.TelephonyManager", lpparam.classLoader);
+        if (tm == null) return;
 
-        if (telephonyManager == null) {
-            return;
-        }
+        hookMethod(tm, "getDeviceId", ConfigManager.getIMEI());
+        hookMethod(tm, "getImei", ConfigManager.getIMEI());
+        hookMethod(tm, "getMeid", ConfigManager.getMEID());
+        hookMethod(tm, "getSubscriberId", ConfigManager.getIMSI());
+        hookMethod(tm, "getSimSerialNumber", ConfigManager.getICCID());
+        hookMethod(tm, "getLine1Number", ConfigManager.getPhoneNumber());
 
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getDeviceId",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.getIMEI());
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
+        hookProp(tm, "getNetworkOperator", "gsm.operator.numeric");
+        hookProp(tm, "getNetworkOperatorName", "gsm.operator.alpha");
+        hookProp(tm, "getSimOperator", "gsm.sim.operator.numeric");
+        hookProp(tm, "getSimOperatorName", "gsm.sim.operator.alpha");
+        hookProp(tm, "getSimCountryIso", "gsm.sim.operator.iso-country");
+        hookProp(tm, "getNetworkCountryIso", "gsm.operator.iso-country");
+    }
 
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getDeviceId", int.class,
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.getIMEI());
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
+    private static void hookMethod(Class<?> clazz, String methodName, final String result) {
+        XC_MethodHook hook = new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                param.setResult(result);
+            }
+        };
+        try { XposedHelpers.findAndHookMethod(clazz, methodName, hook); } catch (Throwable t) {}
+        try { XposedHelpers.findAndHookMethod(clazz, methodName, int.class, hook); } catch (Throwable t) {}
+    }
 
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getImei",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.getIMEI());
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
-
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getImei", int.class,
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.getIMEI());
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
-
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getMeid",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.getMEID());
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
-
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getMeid", int.class,
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.getMEID());
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
-
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getSubscriberId",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.getIMSI());
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
-
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getSubscriberId", int.class,
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.getIMSI());
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
-
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getSimSerialNumber",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.getICCID());
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
-
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getSimSerialNumber", int.class,
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.getICCID());
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
-
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getLine1Number",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.getPhoneNumber());
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
-
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getLine1Number", int.class,
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            param.setResult(ConfigManager.getPhoneNumber());
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
-
-        // Hook network operator methods (MCC/MNC)
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getNetworkOperator",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            String mccMnc = ConfigManager.getSystemProperty("gsm.operator.numeric", null);
-                            if (mccMnc != null) {
-                                param.setResult(mccMnc);
-                            }
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
-
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getNetworkOperatorName",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            String operatorName = ConfigManager.getSystemProperty("gsm.operator.alpha", null);
-                            if (operatorName != null) {
-                                param.setResult(operatorName);
-                            }
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
-
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getSimOperator",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            String simMccMnc = ConfigManager.getSystemProperty("gsm.sim.operator.numeric", null);
-                            if (simMccMnc != null) {
-                                param.setResult(simMccMnc);
-                            }
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
-
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getSimOperatorName",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            String simOperatorName = ConfigManager.getSystemProperty("gsm.sim.operator.alpha", null);
-                            if (simOperatorName != null) {
-                                param.setResult(simOperatorName);
-                            }
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
-
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getSimCountryIso",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            String simCountry = ConfigManager.getSystemProperty("gsm.sim.operator.iso-country", null);
-                            if (simCountry != null) {
-                                param.setResult(simCountry);
-                            }
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
-
-        try {
-            XposedHelpers.findAndHookMethod(telephonyManager, "getNetworkCountryIso",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            String networkCountry = ConfigManager.getSystemProperty("gsm.operator.iso-country", null);
-                            if (networkCountry != null) {
-                                param.setResult(networkCountry);
-                            }
-                        }
-                    });
-        } catch (NoSuchMethodError ignored) {
-        }
+    private static void hookProp(Class<?> clazz, String methodName, final String propKey) {
+        XposedHelpers.findAndHookMethod(clazz, methodName, new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                String val = ConfigManager.getSystemProperty(propKey, null);
+                if (val != null) param.setResult(val);
+            }
+        });
     }
 }
