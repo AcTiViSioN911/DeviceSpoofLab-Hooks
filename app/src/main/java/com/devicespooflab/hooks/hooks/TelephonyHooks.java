@@ -11,8 +11,22 @@ public class TelephonyHooks {
         Class<?> tm = XposedHelpers.findClassIfExists("android.telephony.TelephonyManager", lpparam.classLoader);
         if (tm == null) return;
 
-        hookMethod(tm, "getDeviceId", ConfigManager.getIMEI());
-        hookMethod(tm, "getImei", ConfigManager.getIMEI());
+        XC_MethodHook imeiHook = new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                int slot = 0;
+                if (param.args.length > 0 && param.args[0] instanceof Integer) {
+                    slot = (int) param.args[0];
+                }
+                param.setResult(ConfigManager.getIMEI(slot));
+            }
+        };
+
+        try { XposedHelpers.findAndHookMethod(tm, "getDeviceId", imeiHook); } catch (Throwable t) {}
+        try { XposedHelpers.findAndHookMethod(tm, "getDeviceId", int.class, imeiHook); } catch (Throwable t) {}
+        try { XposedHelpers.findAndHookMethod(tm, "getImei", imeiHook); } catch (Throwable t) {}
+        try { XposedHelpers.findAndHookMethod(tm, "getImei", int.class, imeiHook); } catch (Throwable t) {}
+
         hookMethod(tm, "getMeid", ConfigManager.getMEID());
         hookMethod(tm, "getSubscriberId", ConfigManager.getIMSI());
         hookMethod(tm, "getSimSerialNumber", ConfigManager.getICCID());
