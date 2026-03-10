@@ -1,250 +1,90 @@
 package com.devicespooflab.hooks.hooks;
 
+import de.robv.android.xposed.XC_MethodHook;
+import de.robv.android.xposed.XposedBridge;
+import de.robv.android.xposed.XposedHelpers;
+import de.robv.android.xposed.callbacks.XC_LoadPackage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
-import de.robv.android.xposed.callbacks.XC_LoadPackage;
-
-/**
- * Hooks PackageManager to spoof hardware features for Pixel 7 Pro.
- * Reports real device features, hides emulator-specific features.
- */
 public class PackageManagerHooks {
 
-    private static final String TAG = "DeviceSpoofLab-PackageManager";
-
-    // Pixel 7 Pro hardware features (return true)
-    private static final Set<String> PIXEL_7_PRO_FEATURES = new HashSet<>(Arrays.asList(
-        // Camera
-        "android.hardware.camera",
-        "android.hardware.camera.autofocus",
-        "android.hardware.camera.flash",
-        "android.hardware.camera.front",
-        "android.hardware.camera.any",
-        "android.hardware.camera.ar",
-        "android.hardware.camera.capability.manual_post_processing",
-        "android.hardware.camera.capability.manual_sensor",
-        "android.hardware.camera.capability.raw",
-
-        // Sensors (real device sensors)
-        "android.hardware.sensor.accelerometer",
-        "android.hardware.sensor.gyroscope",
-        "android.hardware.sensor.compass",
-        "android.hardware.sensor.barometer",
-        "android.hardware.sensor.light",
-        "android.hardware.sensor.proximity",
-        "android.hardware.sensor.stepcounter",
-        "android.hardware.sensor.stepdetector",
-
-        // Connectivity
-        "android.hardware.telephony",
-        "android.hardware.telephony.gsm",
-        "android.hardware.telephony.cdma",
-        "android.hardware.telephony.ims",
-        "android.hardware.wifi",
-        "android.hardware.wifi.direct",
-        "android.hardware.wifi.aware",
-        "android.hardware.bluetooth",
-        "android.hardware.bluetooth_le",
-        "android.hardware.nfc",
-        "android.hardware.nfc.hce",
-        "android.hardware.nfc.hcef",
-        "android.hardware.nfc.ese",
-        "android.hardware.nfc.uicc",
-
-        // Biometrics
-        "android.hardware.fingerprint",
-        "android.hardware.biometrics.face",
-
-        // Display
-        "android.hardware.touchscreen",
-        "android.hardware.touchscreen.multitouch",
-        "android.hardware.touchscreen.multitouch.distinct",
-        "android.hardware.touchscreen.multitouch.jazzhand",
-        "android.hardware.screen.portrait",
-        "android.hardware.screen.landscape",
-
-        // Location
-        "android.hardware.location",
-        "android.hardware.location.gps",
-        "android.hardware.location.network",
-
-        // Audio
-        "android.hardware.audio.output",
-        "android.hardware.audio.low_latency",
-        "android.hardware.audio.pro",
-        "android.hardware.microphone",
-
-        // USB
-        "android.hardware.usb.host",
-        "android.hardware.usb.accessory",
-
-        // Vulkan
-        "android.hardware.vulkan.level",
-        "android.hardware.vulkan.version",
-        "android.hardware.vulkan.compute",
-
-        // OpenGL ES
-        "android.hardware.opengles.aep",
-
-        // Software features
-        "android.software.device_admin",
-        "android.software.managed_users",
-        "android.software.webview",
-        "android.software.backup",
-        "android.software.app_widgets",
-        "android.software.voice_recognizers",
-        "android.software.home_screen",
-        "android.software.input_methods",
-        "android.software.connectionservice",
-        "android.software.autofill",
-        "android.software.verified_boot",
-        "android.software.secure_lock_screen"
-    ));
-
-    // Emulator features to deny (return false)
+    private static final String TAG = "DeviceSpoofLab-PM";
     private static final Set<String> DENIED_FEATURES = new HashSet<>(Arrays.asList(
-        "android.hardware.sensor.emulator",
-        "goldfish"
+        "android.hardware.sensor.emulator", "goldfish", "ranchu"
     ));
 
     public static void hook(XC_LoadPackage.LoadPackageParam lpparam) {
         try {
-            // Hook ApplicationPackageManager (the actual implementation)
-            Class<?> appPackageManagerClass = XposedHelpers.findClassIfExists(
-                "android.app.ApplicationPackageManager", lpparam.classLoader);
-
-            if (appPackageManagerClass != null) {
-                hookHasSystemFeature(appPackageManagerClass);
-                hookGetSystemAvailableFeatures(appPackageManagerClass);
+            Class<?> pmClass = XposedHelpers.findClassIfExists("android.app.ApplicationPackageManager", lpparam.classLoader);
+            if (pmClass != null) {
+                hookHasSystemFeature(pmClass);
+                hookGetSystemAvailableFeatures(pmClass);
             }
         } catch (Exception e) {
-            XposedBridge.log(TAG + ": Failed to hook PackageManager: " + e.getMessage());
+            XposedBridge.log(TAG + ": " + e.getMessage());
         }
     }
 
     private static void hookHasSystemFeature(Class<?> pmClass) {
-        try {
-            // Hook hasSystemFeature(String)
-            XposedHelpers.findAndHookMethod(pmClass, "hasSystemFeature",
-                String.class,
-                new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                        String feature = (String) param.args[0];
-
-                        if (feature == null) {
-                            return;
-                        }
-
-                        // Deny emulator features
-                        for (String denied : DENIED_FEATURES) {
-                            if (feature.toLowerCase().contains(denied.toLowerCase())) {
-                                param.setResult(false);
-                                return;
-                            }
-                        }
-
-                        // Report Pixel 7 Pro features as available
-                        if (PIXEL_7_PRO_FEATURES.contains(feature)) {
-                            param.setResult(true);
-                        }
+        XC_MethodHook hook = new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                String feature = (String) param.args[0];
+                if (feature == null) return;
+                for (String denied : DENIED_FEATURES) {
+                    if (feature.toLowerCase().contains(denied)) {
+                        param.setResult(false);
+                        return;
                     }
-                });
-        } catch (Exception e) {
-            XposedBridge.log(TAG + ": Failed to hook hasSystemFeature(String): " + e.getMessage());
-        }
-
+                }
+            }
+        };
         try {
-            // Hook hasSystemFeature(String, int) - version-specific
-            XposedHelpers.findAndHookMethod(pmClass, "hasSystemFeature",
-                String.class, int.class,
-                new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                        String feature = (String) param.args[0];
-
-                        if (feature == null) {
-                            return;
-                        }
-
-                        // Deny emulator features
-                        for (String denied : DENIED_FEATURES) {
-                            if (feature.toLowerCase().contains(denied.toLowerCase())) {
-                                param.setResult(false);
-                                return;
-                            }
-                        }
-
-                        // Report Pixel 7 Pro features as available
-                        if (PIXEL_7_PRO_FEATURES.contains(feature)) {
-                            param.setResult(true);
-                        }
-                    }
-                });
-        } catch (Exception e) {
-            XposedBridge.log(TAG + ": Failed to hook hasSystemFeature(String, int): " + e.getMessage());
-        }
+            XposedHelpers.findAndHookMethod(pmClass, "hasSystemFeature", String.class, hook);
+            XposedHelpers.findAndHookMethod(pmClass, "hasSystemFeature", String.class, int.class, hook);
+        } catch (Exception ignored) {}
     }
 
     private static void hookGetSystemAvailableFeatures(Class<?> pmClass) {
         try {
-            // Hook getSystemAvailableFeatures() - returns FeatureInfo array
-            XposedHelpers.findAndHookMethod(pmClass, "getSystemAvailableFeatures",
-                new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                        Object[] features = (Object[]) param.getResult();
-                        if (features == null) {
-                            return;
-                        }
+            XposedHelpers.findAndHookMethod(pmClass, "getSystemAvailableFeatures", new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                    Object[] features = (Object[]) param.getResult();
+                    if (features == null) return;
 
-                        // Get FeatureInfo class to create properly typed array
-                        Class<?> featureInfoClass = features.getClass().getComponentType();
-
-                        List<Object> filtered = new ArrayList<>();
-                        for (Object feature : features) {
-                            try {
-                                // FeatureInfo has 'name' field
-                                String name = (String) XposedHelpers.getObjectField(feature, "name");
-                                if (name != null) {
-                                    boolean isDenied = false;
-                                    for (String denied : DENIED_FEATURES) {
-                                        if (name.toLowerCase().contains(denied.toLowerCase())) {
-                                            isDenied = true;
-                                            break;
-                                        }
+                    Class<?> featureInfoClass = features.getClass().getComponentType();
+                    List<Object> filtered = new ArrayList<>();
+                    for (Object f : features) {
+                        try {
+                            String name = (String) XposedHelpers.getObjectField(f, "name");
+                            if (name != null) {
+                                boolean isDenied = false;
+                                for (String denied : DENIED_FEATURES) {
+                                    if (name.toLowerCase().contains(denied)) {
+                                        isDenied = true;
+                                        break;
                                     }
-                                    if (!isDenied) {
-                                        filtered.add(feature);
-                                    }
-                                } else {
-                                    // Features without name (OpenGL versions, etc.) - keep them
-                                    filtered.add(feature);
                                 }
-                            } catch (Exception e) {
-                                // Failed to get name, keep the feature
-                                filtered.add(feature);
+                                if (!isDenied) filtered.add(f);
+                            } else {
+                                filtered.add(f);
                             }
+                        } catch (Exception e) {
+                            filtered.add(f);
                         }
-
-                        // Create properly typed array (FeatureInfo[], not Object[])
-                        Object typedArray = java.lang.reflect.Array.newInstance(
-                            featureInfoClass, filtered.size());
-                        for (int i = 0; i < filtered.size(); i++) {
-                            java.lang.reflect.Array.set(typedArray, i, filtered.get(i));
-                        }
-                        param.setResult(typedArray);
                     }
-                });
-        } catch (Exception e) {
-            XposedBridge.log(TAG + ": Failed to hook getSystemAvailableFeatures(): " + e.getMessage());
-        }
+                    Object typedArray = java.lang.reflect.Array.newInstance(featureInfoClass, filtered.size());
+                    for (int i = 0; i < filtered.size(); i++) {
+                        java.lang.reflect.Array.set(typedArray, i, filtered.get(i));
+                    }
+                    param.setResult(typedArray);
+                }
+            });
+        } catch (Exception ignored) {}
     }
 }
