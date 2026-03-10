@@ -14,8 +14,8 @@ public class ConfigManager {
     };
 
     private static Map<String, String> allProperties = null;
+    private static Map<Integer, String> cachedImeis = new HashMap<>();
 
-    private static String cachedIMEI = null;
     private static String cachedMEID = null;
     private static String cachedIMSI = null;
     private static String cachedICCID = null;
@@ -33,7 +33,6 @@ public class ConfigManager {
 
     private static Map<String, String> readConfigFile() {
         Map<String, String> config = new HashMap<>();
-
         for (String configPath : CONFIG_PATHS) {
             File configFile = new File(configPath);
             if (configFile.exists() && configFile.canRead()) {
@@ -42,7 +41,6 @@ public class ConfigManager {
                     while ((line = reader.readLine()) != null) {
                         line = line.trim();
                         if (line.isEmpty() || line.startsWith("#")) continue;
-
                         int equalIndex = line.indexOf('=');
                         if (equalIndex > 0) {
                             String key = line.substring(0, equalIndex).trim();
@@ -62,7 +60,6 @@ public class ConfigManager {
 
     private static Map<String, String> getEmbeddedDefaults() {
         Map<String, String> defaults = new HashMap<>();
-
         defaults.put("ro.boot.verifiedbootstate", "green");
         defaults.put("ro.boot.flash.locked", "1");
         defaults.put("ro.boot.vbmeta.device_state", "locked");
@@ -73,7 +70,6 @@ public class ConfigManager {
         defaults.put("ro.crypto.state", "encrypted");
         defaults.put("ro.kernel.qemu", "0");
         defaults.put("ro.boot.qemu", "0");
-
         defaults.put("gsm.operator.alpha", "Kcell");
         defaults.put("gsm.operator.numeric", "40102");
         defaults.put("gsm.sim.operator.alpha", "Kcell");
@@ -81,7 +77,6 @@ public class ConfigManager {
         defaults.put("gsm.sim.operator.iso-country", "kz");
         defaults.put("persist.sys.timezone", "Asia/Almaty");
         defaults.put("persist.sys.usb.config", "none");
-
         return defaults;
     }
 
@@ -101,8 +96,50 @@ public class ConfigManager {
     }
 
     public static String getIMEI() {
-        if (cachedIMEI == null) cachedIMEI = RandomGenerator.generateIMEI();
-        return cachedIMEI;
+        return getIMEI(0);
+    }
+
+    public static String getIMEI(int slot) {
+        if (cachedImeis.get(slot) == null) {
+            if (slot == 0) {
+                String val = getConfigValue("IMEI");
+                cachedImeis.put(0, (val != null && !val.isEmpty()) ? val : RandomGenerator.generateIMEI());
+            } else {
+                String val2 = getConfigValue("IMEI2");
+                if (val2 != null && !val2.isEmpty()) {
+                    cachedImeis.put(1, val2);
+                } else {
+                    cachedImeis.put(1, deriveImei2(getIMEI(0)));
+                }
+            }
+        }
+        return cachedImeis.get(slot);
+    }
+
+    private static String deriveImei2(String imei1) {
+        try {
+            String base = imei1.substring(0, 14);
+            long num = Long.parseLong(base) + 8;
+            String newBase = String.format("%014d", num);
+            return newBase + calculateLuhn(newBase);
+        } catch (Exception e) {
+            return RandomGenerator.generateIMEI();
+        }
+    }
+
+    private static int calculateLuhn(String n) {
+        int s = 0;
+        boolean a = true;
+        for (int i = n.length() - 1; i >= 0; i--) {
+            int d = Character.getNumericValue(n.charAt(i));
+            if (a) {
+                d *= 2;
+                if (d > 9) d -= 9;
+            }
+            s += d;
+            a = !a;
+        }
+        return (10 - (s % 10)) % 10;
     }
 
     public static String getMEID() {
